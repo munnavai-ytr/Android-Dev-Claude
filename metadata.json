@@ -1,0 +1,6 @@
+{
+  "name": "DroidForge",
+  "description": "Mobile-first PWA AI builder that crafts native Android apps (Kotlin + Jetpack Compose) with BYOK client-side key vault, model limits, and project management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
