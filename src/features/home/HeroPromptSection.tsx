@@ -17,6 +17,7 @@ import { useKeyStore } from '../../store/useKeyStore';
 import { useProjectStore } from '../../store/useProjectStore';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { CreateProjectModal } from '../projects/CreateProjectModal';
+import { OnboardingChecklist } from '../onboarding/OnboardingChecklist';
 
 export const HeroPromptSection: React.FC = () => {
   const router = useRouter();
@@ -118,6 +119,9 @@ export const HeroPromptSection: React.FC = () => {
           </div>
         </div>
       </GlassCard>
+
+      {/* Getting Started Onboarding Progress */}
+      <OnboardingChecklist />
 
       {/* Recent Projects Section */}
       <div className="space-y-3 pt-4">

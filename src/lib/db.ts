@@ -51,27 +51,7 @@ export interface UsageRecord {
   estimatedCost: number; // USD
 }
 
-export interface DroidProject {
-  id: string;
-  name: string;
-  packageName: string;
-  idea: string;
-  createdAt: number;
-  updatedAt: number;
-  files: Record<string, string>; // filepath -> content
-  memory: {
-    architecture: string; // e.g. "MVI + Clean Architecture + Compose"
-    composeBom: string;
-    minSdk: number;
-    targetSdk: number;
-    notes: string[];
-  };
-  settings: {
-    targetSdk: number;
-    minSdk: number;
-    composeVersion: string;
-  };
-}
+
 
 export interface AppSettingRecord {
   id: string;
@@ -105,6 +85,71 @@ export interface ChatMessageRecord {
   timestamp: number;
 }
 
+export interface ProjectGithubConfig {
+  repoOwner: string;
+  repoName: string;
+  repoFullName: string;
+  repoUrl: string;
+  isPrivate: boolean;
+  defaultBranch: string;
+  lastPushedSha?: string;
+  lastPushedAt?: number;
+  appetizeConfigured?: boolean;
+  appetizePublicKey?: string;
+}
+
+export interface StoredGithubCredential {
+  id: string; // 'current'
+  username: string;
+  avatarUrl: string;
+  name?: string;
+  encryptedToken: string;
+  iv: string;
+  maskedToken: string;
+  scopes?: string[];
+  rateLimitRemaining?: number;
+  lastValidatedAt: number;
+}
+
+export interface StoredBuildRun {
+  id: string; // `${projectId}_${runId}`
+  projectId: string;
+  runId: number;
+  status: 'queued' | 'in_progress' | 'completed' | 'failed' | 'cancelled';
+  conclusion?: string;
+  commitSha: string;
+  commitMessage: string;
+  errors?: string[];
+  appetizePublicKey?: string;
+  apkUrl?: string;
+  htmlUrl: string;
+  durationSeconds?: number;
+  timestamp: number;
+}
+
+export interface DroidProject {
+  id: string;
+  name: string;
+  packageName: string;
+  idea: string;
+  createdAt: number;
+  updatedAt: number;
+  files: Record<string, string>; // filepath -> content
+  memory: {
+    architecture: string; // e.g. "MVI + Clean Architecture + Compose"
+    composeBom: string;
+    minSdk: number;
+    targetSdk: number;
+    notes: string[];
+  };
+  settings: {
+    targetSdk: number;
+    minSdk: number;
+    composeVersion: string;
+  };
+  githubConfig?: ProjectGithubConfig;
+}
+
 export class DroidForgeDatabase extends Dexie {
   apiKeys!: Table<StoredApiKey, string>;
   usageRecords!: Table<UsageRecord, string>;
@@ -112,6 +157,8 @@ export class DroidForgeDatabase extends Dexie {
   appSettings!: Table<AppSettingRecord, string>;
   snapshots!: Table<ProjectSnapshot, string>;
   chatMessages!: Table<ChatMessageRecord, string>;
+  githubCredentials!: Table<StoredGithubCredential, string>;
+  buildRuns!: Table<StoredBuildRun, string>;
 
   constructor() {
     super('DroidForgeDB');
@@ -130,6 +177,17 @@ export class DroidForgeDatabase extends Dexie {
       appSettings: 'id',
       snapshots: 'id, projectId, timestamp',
       chatMessages: 'id, projectId, timestamp',
+    });
+
+    this.version(3).stores({
+      apiKeys: 'id, provider, status, lastValidatedAt',
+      usageRecords: 'id, keyId, provider, model, timestamp, dateStr, monthStr',
+      projects: 'id, name, createdAt, updatedAt',
+      appSettings: 'id',
+      snapshots: 'id, projectId, timestamp',
+      chatMessages: 'id, projectId, timestamp',
+      githubCredentials: 'id, username, lastValidatedAt',
+      buildRuns: 'id, projectId, runId, status, timestamp',
     });
   }
 }

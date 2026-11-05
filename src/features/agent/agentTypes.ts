@@ -37,6 +37,7 @@ export interface FileOperation {
 
 export interface CoderOutput {
   thoughtProcess?: string;
+  summary?: string;
   operations: FileOperation[];
 }
 

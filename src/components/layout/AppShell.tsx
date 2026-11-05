@@ -23,6 +23,7 @@ import { useProjectStore } from '../../store/useProjectStore';
 import { useSettingsStore } from '../../store/useSettingsStore';
 import { useUsageStore } from '../../store/useUsageStore';
 import { OnboardingModal } from '../../features/onboarding/OnboardingModal';
+import { ErrorBoundary } from '../ui/ErrorBoundary';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -151,7 +152,9 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 
         {/* Dynamic Route Content */}
         <main className="flex-1 flex flex-col pb-20 md:pb-8 p-4 sm:p-6 lg:p-8 min-w-0">
-          {children}
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
         </main>
       </div>
 

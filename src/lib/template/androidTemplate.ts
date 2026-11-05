@@ -13,6 +13,8 @@
  * Zero binary files: app icons are 100% Android Vector Drawables (XML).
  */
 
+import { getBuildWorkflowYaml } from './workflowTemplate';
+
 export interface TemplateParams {
   name: string;
   packageName: string;
@@ -493,7 +495,10 @@ fun MainScreen(modifier: Modifier = Modifier) {
 }
 `;
 
-  // 14. Initial .builder/memory.json
+  // 14. GitHub Actions CI/CD Workflow
+  files['.github/workflows/build.yml'] = getBuildWorkflowYaml(name);
+
+  // 15. Initial .builder/memory.json
   const memoryData = {
     appName: name,
     packageName: pkg,

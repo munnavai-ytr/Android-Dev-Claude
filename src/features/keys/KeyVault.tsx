@@ -1,12 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
-import { KeyRound, Plus, ShieldCheck, Zap, Layers, RefreshCw } from 'lucide-react';
+import { KeyRound, Plus, ShieldCheck, Zap, Layers, RefreshCw, Github, CheckCircle2 } from 'lucide-react';
 import { useKeyStore } from '../../store/useKeyStore';
+import { useGithubStore } from '../../store/useGithubStore';
 import type { StoredApiKey } from '../../lib/db';
 import { KeyCard } from './KeyCard';
 import { AddKeyModal } from './AddKeyModal';
 import { KeyTestModal } from './KeyTestModal';
+import { GithubConnectModal } from '../github/GithubConnectModal';
 import { LimitsDashboard } from '../dashboard/LimitsDashboard';
 import { Modal } from '../../components/ui/Modal';
 import { GlassCard } from '../../components/ui/GlassCard';
@@ -15,6 +17,13 @@ export const KeyVault: React.FC = () => {
   const keys = useKeyStore((state) => state.keys);
   const isLoading = useKeyStore((state) => state.isLoading);
   const loadKeys = useKeyStore((state) => state.loadKeys);
+
+  const { credential, loadCredential } = useGithubStore();
+  const [isGithubModalOpen, setIsGithubModalOpen] = useState(false);
+
+  React.useEffect(() => {
+    loadCredential().catch(console.warn);
+  }, [loadCredential]);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedKeyForTest, setSelectedKeyForTest] = useState<StoredApiKey | null>(null);
@@ -30,21 +39,65 @@ export const KeyVault: React.FC = () => {
         <div>
           <h1 className="font-heading text-2xl font-bold text-white tracking-tight flex items-center gap-2.5">
             <KeyRound className="w-6 h-6 text-[#3DDC84]" />
-            BYOK Key Vault
+            BYOK Key Vault & Integrations
           </h1>
           <p className="mt-1 text-xs sm:text-sm text-[#8B93A7]">
-            Non-extractable AES-GCM encrypted browser storage. Direct calls to Gemini & OpenRouter.
+            Non-extractable AES-GCM encrypted browser storage. Direct calls to Gemini, OpenRouter & GitHub.
           </p>
         </div>
 
-        <button
-          onClick={() => setIsAddModalOpen(true)}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-[#07080B] bg-gradient-to-r from-[#3DDC84] to-[#22D3EE] hover:opacity-90 active:scale-95 transition-all min-h-[44px] shadow-sm shadow-[#3DDC84]/20"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add API Key</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsGithubModalOpen(true)}
+            className="flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-white bg-white/5 border border-white/10 hover:bg-white/10 active:scale-95 transition-all min-h-[44px]"
+          >
+            <Github className="w-4 h-4" />
+            <span>{credential ? 'GitHub Connected' : 'Connect GitHub'}</span>
+          </button>
+
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-[#07080B] bg-gradient-to-r from-[#3DDC84] to-[#22D3EE] hover:opacity-90 active:scale-95 transition-all min-h-[44px] shadow-sm shadow-[#3DDC84]/20"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add AI Key</span>
+          </button>
+        </div>
       </div>
+
+      {/* GitHub Integration Status Banner */}
+      <GlassCard radius={20} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-white/8 bg-[#0E1016]">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white shrink-0">
+            <Github className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-white">GitHub CI/CD Integration</span>
+              {credential ? (
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#3DDC84]/10 text-[#3DDC84] flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" />
+                  @{credential.username} ({credential.maskedToken})
+                </span>
+              ) : (
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/5 text-[#8B93A7]">
+                  Not Connected
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-[#8B93A7] mt-0.5">
+              Required for cloud assembleDebug compilation, Appetize streaming, and release APK downloads.
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={() => setIsGithubModalOpen(true)}
+          className="self-start sm:self-auto px-3.5 py-1.5 rounded-lg text-xs font-medium text-[#22D3EE] bg-[#22D3EE]/10 hover:bg-[#22D3EE]/20 transition-colors shrink-0"
+        >
+          {credential ? 'Manage Credentials' : 'Configure PAT'}
+        </button>
+      </GlassCard>
 
       {/* Keys Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -140,6 +193,12 @@ export const KeyVault: React.FC = () => {
           ))}
         </div>
       </Modal>
+
+      {/* GitHub Connect Modal */}
+      <GithubConnectModal
+        isOpen={isGithubModalOpen}
+        onClose={() => setIsGithubModalOpen(false)}
+      />
     </div>
   );
 };

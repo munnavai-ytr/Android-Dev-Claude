@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { getDb, type DroidProject, type ProjectSnapshot } from '../lib/db';
+import { getDb, type DroidProject, type ProjectSnapshot, type ProjectGithubConfig } from '../lib/db';
 import { generateAndroidTemplate, sanitizePackageName } from '../lib/template';
 
 interface ProjectStoreState {
@@ -20,6 +20,7 @@ interface ProjectStoreState {
   deleteProject: (id: string) => Promise<void>;
   selectProject: (id: string) => Promise<DroidProject | null>;
   updateProjectIdea: (id: string, idea: string) => Promise<void>;
+  updateProjectGithubConfig: (id: string, config: ProjectGithubConfig | undefined) => Promise<void>;
   updateProjectFiles: (
     id: string,
     files: Record<string, string>,
@@ -163,6 +164,25 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     const updated: DroidProject = {
       ...existing,
       idea,
+      updatedAt: Date.now(),
+    };
+
+    await db.projects.put(updated);
+    const all = await db.projects.orderBy('updatedAt').reverse().toArray();
+    set({
+      projects: all,
+      activeProject: get().activeProject?.id === id ? updated : get().activeProject,
+    });
+  },
+
+  updateProjectGithubConfig: async (id: string, config: ProjectGithubConfig | undefined) => {
+    const db = getDb();
+    const existing = await db.projects.get(id);
+    if (!existing) return;
+
+    const updated: DroidProject = {
+      ...existing,
+      githubConfig: config,
       updatedAt: Date.now(),
     };
 
