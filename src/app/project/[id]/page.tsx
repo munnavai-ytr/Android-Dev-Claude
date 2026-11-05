@@ -3,7 +3,7 @@
 import React from 'react';
 import { useParams } from 'next/navigation';
 import { AppShell } from '../../../components/layout/AppShell';
-import { ProjectDetailView } from '../../../features/projects/ProjectDetailView';
+import { WorkspaceLayout } from '../../../features/workspace/WorkspaceLayout';
 
 export default function ProjectPage() {
   const params = useParams();
@@ -11,7 +11,7 @@ export default function ProjectPage() {
 
   return (
     <AppShell>
-      <ProjectDetailView projectId={id} />
+      <WorkspaceLayout projectId={id} />
     </AppShell>
   );
 }

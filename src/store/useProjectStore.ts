@@ -1,9 +1,11 @@
 import { create } from 'zustand';
-import { getDb, type DroidProject } from '../lib/db';
+import { getDb, type DroidProject, type ProjectSnapshot } from '../lib/db';
+import { generateAndroidTemplate, sanitizePackageName } from '../lib/template';
 
 interface ProjectStoreState {
   projects: DroidProject[];
   activeProject: DroidProject | null;
+  snapshots: ProjectSnapshot[];
   isLoading: boolean;
   error: string | null;
 
@@ -18,225 +20,23 @@ interface ProjectStoreState {
   deleteProject: (id: string) => Promise<void>;
   selectProject: (id: string) => Promise<DroidProject | null>;
   updateProjectIdea: (id: string, idea: string) => Promise<void>;
-  updateProjectFiles: (id: string, files: Record<string, string>, notes?: string[]) => Promise<void>;
-}
-
-function sanitizePackageName(name: string): string {
-  const clean = name.toLowerCase().replace(/[^a-z0-9]/g, '');
-  return `com.droidforge.${clean || 'app'}`;
-}
-
-function generateInitialAndroidFiles(name: string, pkg: string): Record<string, string> {
-  const pkgPath = pkg.replace(/\./g, '/');
-
-  return {
-    'settings.gradle.kts': `pluginManagement {
-    repositories {
-        google()
-        mavenCentral()
-        gradlePluginPortal()
-    }
-}
-dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-
-rootProject.name = "${name}"
-include(":app")
-`,
-    'build.gradle.kts': `// Top-level build file
-plugins {
-    alias(libs.plugins.android.application) apply false
-    alias(libs.plugins.kotlin.android) apply false
-    alias(libs.plugins.kotlin.compose) apply false
-}
-`,
-    'app/build.gradle.kts': `plugins {
-    alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.compose)
-}
-
-android {
-    namespace = "${pkg}"
-    compileSdk = 35
-
-    defaultConfig {
-        applicationId = "${pkg}"
-        minSdk = 26
-        targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
-
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    }
-
-    buildTypes {
-        release {
-            isMinifyEnabled = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-        }
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-    buildFeatures {
-        compose = true
-    }
-}
-
-dependencies {
-    implementation(platform("androidx.compose:compose-bom:2024.10.01"))
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.ui:ui-graphics")
-    implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.compose.material3:material3")
-    implementation("androidx.activity:activity-compose:1.9.3")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
-    implementation("androidx.navigation:navigation-compose:2.8.4")
-    implementation("androidx.core:core-ktx:1.15.0")
-    debugImplementation("androidx.compose.ui:ui-tooling")
-}
-`,
-    'app/src/main/AndroidManifest.xml': `<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
-    <application
-        android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher"
-        android:label="${name}"
-        android:roundIcon="@mipmap/ic_launcher_round"
-        android:supportsRtl="true"
-        android:theme="@style/Theme.DroidForgeApp">
-        <activity
-            android:name=".MainActivity"
-            android:exported="true"
-            android:theme="@style/Theme.DroidForgeApp">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-    </application>
-
-</manifest>
-`,
-    [`app/src/main/java/${pkgPath}/MainActivity.kt`]: `package ${pkg}
-
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.ui.Modifier
-import ${pkg}.ui.theme.${name.replace(/[^a-zA-Z0-9]/g, '')}Theme
-import ${pkg}.ui.screens.HomeScreen
-
-class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {
-            ${name.replace(/[^a-zA-Z0-9]/g, '')}Theme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    HomeScreen(modifier = Modifier.padding(innerPadding))
-                }
-            }
-        }
-    }
-}
-`,
-    [`app/src/main/java/${pkgPath}/ui/screens/HomeScreen.kt`]: `package ${pkg}.ui.screens
-
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-
-@Composable
-fun HomeScreen(modifier: Modifier = Modifier) {
-    Surface(
-        modifier = modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "${name}",
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = "Native Android Jetpack Compose Architecture",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-`,
-    [`app/src/main/java/${pkgPath}/ui/theme/Theme.kt`]: `package ${pkg}.ui.theme
-
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
-
-private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFF3DDC84),
-    secondary = Color(0xFF22D3EE),
-    tertiary = Color(0xFF8B5CF6),
-    background = Color(0xFF07080B),
-    surface = Color(0xFF0E1016),
-)
-
-private val LightColorScheme = lightColorScheme(
-    primary = Color(0xFF1B8748),
-    secondary = Color(0xFF0284C7),
-    tertiary = Color(0xFF7C3AED),
-)
-
-@Composable
-fun ${name.replace(/[^a-zA-Z0-9]/g, '')}Theme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    content: @Composable () -> Unit
-) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
-    MaterialTheme(
-        colorScheme = colorScheme,
-        content = content
-    )
-}
-`,
-  };
+  updateProjectFiles: (
+    id: string,
+    files: Record<string, string>,
+    notes?: string[],
+    snapshotMessage?: string
+  ) => Promise<void>;
+  updateFileContent: (id: string, filePath: string, content: string) => Promise<void>;
+  deleteProjectFile: (id: string, filePath: string) => Promise<void>;
+  createSnapshot: (id: string, message: string) => Promise<ProjectSnapshot | null>;
+  loadSnapshots: (projectId: string) => Promise<ProjectSnapshot[]>;
+  restoreSnapshot: (projectId: string, snapshotId: string) => Promise<void>;
 }
 
 export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   projects: [],
   activeProject: null,
+  snapshots: [],
   isLoading: true,
   error: null,
 
@@ -256,8 +56,15 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   createProject: async ({ name, idea, packageName, architecture }) => {
     const db = getDb();
     const id = `proj_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    const pkg = packageName || sanitizePackageName(name);
-    const initialFiles = generateInitialAndroidFiles(name, pkg);
+    const pkg = packageName ? packageName.trim() : sanitizePackageName(name);
+
+    // Generate comprehensive native Android template
+    const initialFiles = generateAndroidTemplate({
+      name: name.trim(),
+      packageName: pkg,
+      idea: idea.trim(),
+      architecture: architecture || 'Clean Architecture + MVI + Jetpack Compose',
+    });
 
     const newProject: DroidProject = {
       id,
@@ -273,8 +80,9 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
         minSdk: 26,
         targetSdk: 35,
         notes: [
-          'Initialized with standard Kotlin Multiplatform & Android Compose conventions.',
+          'Initialized with standard Kotlin & Jetpack Compose conventions.',
           'Configured for Android 15 (Target SDK 35) with Edge-to-Edge display.',
+          'Version catalog libs.versions.toml configured with AGP 8.7.2 and Kotlin 2.0.21.',
         ],
       },
       settings: {
@@ -285,8 +93,20 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     };
 
     await db.projects.add(newProject);
+
+    // Create initial snapshot
+    const snapshot: ProjectSnapshot = {
+      id: `snap_${Date.now()}`,
+      projectId: id,
+      name: 'Initial Project Template',
+      timestamp: Date.now(),
+      filesSummary: `${Object.keys(initialFiles).length} files created`,
+      files: { ...initialFiles },
+    };
+    await db.snapshots.add(snapshot);
+
     const all = await db.projects.orderBy('updatedAt').reverse().toArray();
-    set({ projects: all, activeProject: newProject });
+    set({ projects: all, activeProject: newProject, snapshots: [snapshot] });
     return newProject;
   },
 
@@ -312,10 +132,15 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   deleteProject: async (id: string) => {
     const db = getDb();
     await db.projects.delete(id);
+    // Delete associated snapshots and messages
+    await db.snapshots.where('projectId').equals(id).delete();
+    await db.chatMessages.where('projectId').equals(id).delete();
+
     const all = await db.projects.orderBy('updatedAt').reverse().toArray();
     set({
       projects: all,
       activeProject: get().activeProject?.id === id ? null : get().activeProject,
+      snapshots: [],
     });
   },
 
@@ -323,7 +148,8 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     const db = getDb();
     const proj = await db.projects.get(id);
     if (proj) {
-      set({ activeProject: proj });
+      const snaps = await db.snapshots.where('projectId').equals(id).reverse().sortBy('timestamp');
+      set({ activeProject: proj, snapshots: snaps });
       return proj;
     }
     return null;
@@ -348,14 +174,16 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     });
   },
 
-  updateProjectFiles: async (id: string, files: Record<string, string>, notes?: string[]) => {
+  updateProjectFiles: async (id: string, files: Record<string, string>, notes?: string[], snapshotMessage?: string) => {
     const db = getDb();
     const existing = await db.projects.get(id);
     if (!existing) return;
 
+    const mergedFiles = { ...existing.files, ...files };
+
     const updated: DroidProject = {
       ...existing,
-      files: { ...existing.files, ...files },
+      files: mergedFiles,
       memory: {
         ...existing.memory,
         notes: notes ? [...existing.memory.notes, ...notes] : existing.memory.notes,
@@ -364,10 +192,112 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     };
 
     await db.projects.put(updated);
+
+    if (snapshotMessage) {
+      const snapshot: ProjectSnapshot = {
+        id: `snap_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
+        projectId: id,
+        name: snapshotMessage,
+        timestamp: Date.now(),
+        filesSummary: `${Object.keys(files).length} files modified`,
+        files: { ...mergedFiles },
+      };
+      await db.snapshots.add(snapshot);
+      const snaps = await db.snapshots.where('projectId').equals(id).reverse().sortBy('timestamp');
+      set({ snapshots: snaps });
+    }
+
     const all = await db.projects.orderBy('updatedAt').reverse().toArray();
     set({
       projects: all,
       activeProject: get().activeProject?.id === id ? updated : get().activeProject,
+    });
+  },
+
+  updateFileContent: async (id: string, filePath: string, content: string) => {
+    const db = getDb();
+    const existing = await db.projects.get(id);
+    if (!existing) return;
+
+    const updatedFiles = { ...existing.files, [filePath]: content };
+    const updated: DroidProject = {
+      ...existing,
+      files: updatedFiles,
+      updatedAt: Date.now(),
+    };
+
+    await db.projects.put(updated);
+    set({
+      activeProject: get().activeProject?.id === id ? updated : get().activeProject,
+    });
+  },
+
+  deleteProjectFile: async (id: string, filePath: string) => {
+    const db = getDb();
+    const existing = await db.projects.get(id);
+    if (!existing) return;
+
+    const newFiles = { ...existing.files };
+    delete newFiles[filePath];
+
+    const updated: DroidProject = {
+      ...existing,
+      files: newFiles,
+      updatedAt: Date.now(),
+    };
+
+    await db.projects.put(updated);
+    set({
+      activeProject: get().activeProject?.id === id ? updated : get().activeProject,
+    });
+  },
+
+  createSnapshot: async (id: string, message: string) => {
+    const db = getDb();
+    const existing = await db.projects.get(id);
+    if (!existing) return null;
+
+    const snapshot: ProjectSnapshot = {
+      id: `snap_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
+      projectId: id,
+      name: message,
+      timestamp: Date.now(),
+      filesSummary: `${Object.keys(existing.files).length} files`,
+      files: { ...existing.files },
+    };
+
+    await db.snapshots.add(snapshot);
+    const snaps = await db.snapshots.where('projectId').equals(id).reverse().sortBy('timestamp');
+    set({ snapshots: snaps });
+    return snapshot;
+  },
+
+  loadSnapshots: async (projectId: string) => {
+    const db = getDb();
+    const snaps = await db.snapshots.where('projectId').equals(projectId).reverse().sortBy('timestamp');
+    set({ snapshots: snaps });
+    return snaps;
+  },
+
+  restoreSnapshot: async (projectId: string, snapshotId: string) => {
+    const db = getDb();
+    const snapshot = await db.snapshots.get(snapshotId);
+    if (!snapshot) return;
+
+    const existing = await db.projects.get(projectId);
+    if (!existing) return;
+
+    const updated: DroidProject = {
+      ...existing,
+      files: { ...snapshot.files },
+      updatedAt: Date.now(),
+    };
+
+    await db.projects.put(updated);
+    const all = await db.projects.orderBy('updatedAt').reverse().toArray();
+    set({
+      projects: all,
+      activeProject: updated,
     });
   },
 }));

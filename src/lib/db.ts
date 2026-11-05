@@ -83,11 +83,35 @@ export interface AppSettingRecord {
   updatedAt: number;
 }
 
+export interface ProjectSnapshot {
+  id: string;
+  projectId: string;
+  name: string;
+  timestamp: number;
+  filesSummary: string;
+  files: Record<string, string>;
+}
+
+export interface ChatMessageRecord {
+  id: string;
+  projectId: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  stage?: 'understand' | 'plan' | 'generate' | 'review' | 'idle';
+  planSpec?: any;
+  fileChanges?: Array<{ path: string; action: 'create' | 'replace' | 'patch' | 'delete'; diffStat: string }>;
+  warnings?: string[];
+  tokensUsed?: number;
+  timestamp: number;
+}
+
 export class DroidForgeDatabase extends Dexie {
   apiKeys!: Table<StoredApiKey, string>;
   usageRecords!: Table<UsageRecord, string>;
   projects!: Table<DroidProject, string>;
   appSettings!: Table<AppSettingRecord, string>;
+  snapshots!: Table<ProjectSnapshot, string>;
+  chatMessages!: Table<ChatMessageRecord, string>;
 
   constructor() {
     super('DroidForgeDB');
@@ -97,6 +121,15 @@ export class DroidForgeDatabase extends Dexie {
       usageRecords: 'id, keyId, provider, model, timestamp, dateStr, monthStr',
       projects: 'id, name, createdAt, updatedAt',
       appSettings: 'id',
+    });
+
+    this.version(2).stores({
+      apiKeys: 'id, provider, status, lastValidatedAt',
+      usageRecords: 'id, keyId, provider, model, timestamp, dateStr, monthStr',
+      projects: 'id, name, createdAt, updatedAt',
+      appSettings: 'id',
+      snapshots: 'id, projectId, timestamp',
+      chatMessages: 'id, projectId, timestamp',
     });
   }
 }
